@@ -1,22 +1,22 @@
 import {useState, useEffect} from 'react';
 import {
   interval,
-  Subject
+  Subject,
 } from 'rxjs';
-import {
-  scan,
-  startWith,
+import {  
+  scan,  
+  startWith, 
 } from 'rxjs/operators';
 
-
-
 function App() {
-  const [time, setTime] = useState();
+  const [time, setTime] = useState(0);
   const [timerOn, setTimerOn] = useState(false);
   const [reset, setReset] = useState(false);
+  const [currTime, setCurrTime] = useState(time);
+  const [paused, setPaused] = useState(false)
 
   const observable$ = interval(10).pipe(
-    startWith(0),
+    startWith(currTime),
     scan(time => time + 10)
   );
 
@@ -29,31 +29,29 @@ function App() {
   const actionReset$ = new Subject();
   actionReset$.subscribe(setReset);
 
+  const actionPaused$ = new Subject();
+  actionPaused$.subscribe(setPaused);
+
   useEffect(() => {
     const sub = observable$.subscribe(setTime);
 
     if(!timerOn) {
-      sub.unsubscribe()
+      sub.unsubscribe();
+    }
+
+    if(paused) {
+      sub.unsubscribe();
+      setTime(currTime);
     }
     
     if(reset) {
       action$.next(0);
+      setCurrTime(0)
     }
     actionReset$.next(false);
 
     return () => sub.unsubscribe();
-    // let interval = null;
-
-    // if(timerOn) {
-    //   interval = setInterval(() => {
-    //     setTime(prevTime => prevTime + 10)
-    //   }, 10)
-    // } else {
-    //   clearInterval(interval)
-    // }
-
-    // return () => clearInterval(interval)
-  }, [timerOn, reset])
+  }, [timerOn, reset, paused])
 
   return (
     <div>
@@ -63,9 +61,9 @@ function App() {
         <span>{('0' + ((time/10) % 100)).slice(-2)}</span>
       </div>
       <div>
-        <button onClick={() => {actionOn$.next(true)}}>Start</button>
-        <button onClick={() => {actionOn$.next(false)}}>Stop</button>
-        <button onDoubleClick={() => actionOn$.next(false)}>Wait</button>
+        <button id='resume' onClick={() => {actionOn$.next(true); actionPaused$.next(false)}}>Start</button>
+        <button onClick={() => {actionOn$.next(false); setCurrTime(0)}}>Stop</button>
+        <button id='pause' onDoubleClick={() => {setCurrTime(time); actionPaused$.next(true)}}>Wait</button>
         <button onClick={() => actionReset$.next(true)}>Reset</button>
       </div>
     </div>
